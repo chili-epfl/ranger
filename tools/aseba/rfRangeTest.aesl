@@ -1,0 +1,61 @@
+<!DOCTYPE aesl-source>
+<network>
+
+
+<!--list of global events-->
+<event size="0" name="packet"/>
+
+
+<!--list of constants-->
+<constant value="12" name="TIME_CST"/>
+
+
+<!--show keywords state-->
+<keywords flag="true"/>
+
+
+<!--node RangerMain-->
+<node nodeId="1" name="RangerMain">var i = 0
+var j = -TIME_CST
+for i in 0:185 do
+	call led.set(i, 0, 0, 0)
+end
+
+onevent packet
+j = TIME_CST
+for i in 0:185 do
+	call led.set(i, 0, 20, 0)
+end
+
+onevent acc
+if  j > 0 then
+	j--
+	if j == 0 then
+		for i in 0:185 do
+			call led.set(i, 20, 0, 0)
+		end
+	end
+end</node>
+
+
+<!--node rab2-->
+<node nodeId="7" name="rab2">var rabFeedbackEnable = 0
+var c
+rf.id = 7
+rf.swarm_size = 25
+rf.slot_time = 4000
+rx.power.en = 1
+tx.power.en = 1
+call rf.start()
+
+
+onevent packet.rx
+emit packet
+</node>
+
+
+<!--node neuil-->
+<node nodeId="15" name="neuil"></node>
+
+
+</network>

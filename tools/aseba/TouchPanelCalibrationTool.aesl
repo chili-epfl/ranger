@@ -1,0 +1,120 @@
+<!DOCTYPE aesl-source>
+<network>
+
+
+<!--list of global events-->
+<event size="1" name="Plot"/>
+<event size="0" name="ComputeThreshold"/>
+
+
+<!--list of constants-->
+<constant value="2" name="MAX_PANNEL"/>
+<constant value="8" name="MAX_KEY"/>
+<constant value="3" name="K1"/>
+<constant value="2" name="K2"/>
+
+
+<!--show keywords state-->
+<keywords flag="true"/>
+
+
+<!--node RangerMain-->
+<node nodeId="1" name="RangerMain">var touchLeftThreshold[MAX_KEY+1]
+var touchRearThreshold[MAX_KEY+1]
+var touchRightThreshold[MAX_KEY+1]
+
+var touchMax0[MAX_KEY+1]
+var touchMin0[MAX_KEY+1]
+var touchMax1[MAX_KEY+1]
+var touchMin1[MAX_KEY+1]
+var touchMax2[MAX_KEY+1]
+var touchMin2[MAX_KEY+1]
+
+var value
+var touchBuffer[43]
+var i
+var currentPanel = 0
+var currentKey = 0
+
+touch._disable = 1
+
+call math.fill(touchMax0, 0)
+call math.fill(touchMin0, 10000)
+call math.fill(touchMax1, 0)
+call math.fill(touchMin1, 10000)
+call math.fill(touchMax2, 0)
+call math.fill(touchMin2, 10000)
+
+sub analzeKey
+if currentKey > 4 then #Because 5 and 6 are not touch sensors
+	touchBuffer[0] = 32 + currentKey + 2
+else
+	touchBuffer[0] = 32 + currentKey
+end
+
+for i in 1:2 do
+	touchBuffer[i]=0
+end
+call touch.debug(currentPanel, touchBuffer[0:2], 0)
+value = (touchBuffer[1]&lt;&lt;8)+touchBuffer[2]
+if currentPanel == 0 then
+	if value &lt; touchMin0[currentKey] then
+		touchMin0[currentKey] = value
+	end
+	if value > touchMax0[currentKey] then
+		touchMax0[currentKey] = value
+	end
+elseif currentPanel == 1 then
+	if value &lt; touchMin1[currentKey] then
+		touchMin1[currentKey] = value
+	end
+	if value > touchMax1[currentKey] then
+		touchMax1[currentKey] = value
+	end
+elseif currentPanel == 2 then
+	if value &lt; touchMin2[currentKey] then
+		touchMin2[currentKey] = value
+	end
+	if value > touchMax2[currentKey] then
+		touchMax2[currentKey] = value
+	end
+end
+
+sub analzePanel
+for currentKey in 0:MAX_KEY do
+	callsub analzeKey
+end
+
+onevent acc
+currentPanel = 1
+currentKey = 5
+touchBuffer[0]=32+currentKey
+for i in 1:2 do
+	touchBuffer[i]=0
+end
+call touch.debug(currentPanel, touchBuffer[0:2], 0)
+value = (touchBuffer[1]&lt;&lt;8)+touchBuffer[2]
+emit Plot value
+
+for currentPanel in 0:MAX_PANNEL do
+	callsub analzePanel
+end
+
+
+onevent ComputeThreshold
+for i in 0:8 do
+	touchLeftThreshold[i] = (touchMax0[i]*K1 + touchMin0[i]*K2) / (K1+K2)
+	touchRearThreshold[i] = (touchMax1[i]*K1 + touchMin1[i]*K2) / (K1+K2)
+	touchRightThreshold[i] = (touchMax2[i]*K1 + touchMin2[i]*K2) / (K1+K2)
+end</node>
+
+
+<!--node rab2-->
+<node nodeId="7" name="rab2"></node>
+
+
+<!--node neuil-->
+<node nodeId="15" name="neuil"></node>
+
+
+</network>
