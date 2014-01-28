@@ -17,4 +17,4 @@ This diractory contains the controller of the robot implementing the behavior an
 This directory contains all the media of usefull for the robot.
 
 ## tools
-This directory contains some tools for the generation of led patterns and some calibration/test scripts.
+This directory contains some tools for the generation of led patterns, some calibration/test scripts and the script to connect to the robot.
