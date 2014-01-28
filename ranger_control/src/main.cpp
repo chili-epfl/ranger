@@ -1,8 +1,6 @@
 #include "Ranger.hpp"
 
 #include <stdio.h>
-#include <math.h>
-#include <limits>
 
 using namespace webots;
 
