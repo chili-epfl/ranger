@@ -31,7 +31,7 @@ double TouchSensor::getValue() const {
 }
 
 int TouchSensor::getType() const {
-	return mType;
+  return mType;
 }
 
 void TouchSensor::setValue(const double value) {
