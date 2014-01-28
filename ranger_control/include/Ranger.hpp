@@ -1,6 +1,6 @@
 // File:          ranger.cpp
 // Date:          18.06.2013
-// Description:   Ranger simple C++ controller
+// Description:   Ranger C++ controller
 // Author:        david.mansolino@epfl.ch
 
 #ifndef RANGERCPP_HPP
@@ -38,7 +38,7 @@ namespace webots {
       bool                             isAttractorActif(int nbIteration = 5);
       void                             goToAttractor();
       
-      void                             printPos();
+      void                             printPos(); // debug function
       void                             updateStationPos();
       void                             openEyes();
       void                             closeEyes();
