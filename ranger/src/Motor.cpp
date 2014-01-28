@@ -25,7 +25,7 @@ void Motor::setPosition(double position) {
     mTargetPosition = position;
     if(mTargetPosition > mMaxPos)
       mTargetPosition = mMaxPos;
-	if(mTargetPosition < mMinPos)
+    if(mTargetPosition < mMinPos)
       mTargetPosition = mMinPos;
     mChanged = true;
   }
@@ -53,11 +53,11 @@ void Motor::disablePosition() {
 }
 
 double Motor::getPosition() {
-	return mTargetPosition;
+  return mTargetPosition;
 }
 
 int Motor::getType() const {
-	return 0;
+  return 0;
 }
       
 bool Motor::hasChanged() {
