@@ -2,7 +2,7 @@
 This repository contains everything that is needed in order to calibrate, test and control the real ranger robot.
 
 ## aseba
-This directory contains the main aseba scripts which need to run on the robot, on the charging station and in the beacon.
+This directory contains the main aseba scripts which need to run on the robot, on the charging station and on the beacon.
 
 ## doc
 This directory contains the documentation and some datasheets of the robot.
