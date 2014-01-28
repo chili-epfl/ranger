@@ -26,9 +26,9 @@ int LED::get() {
 }
 
 bool LED::hasChanged() {
-	return mChanged;
+  return mChanged;
 }
 
 void LED::resetChanged() {
-	mChanged = false;
+  mChanged = false;
 }
