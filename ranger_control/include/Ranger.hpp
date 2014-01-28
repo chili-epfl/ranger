@@ -16,7 +16,7 @@
 #define BASE_ID             4
 #define ATTRACTOR_ID        20
 
-#define DEBUG
+//#define DEBUG
 
 namespace webots {
   class Motor;
