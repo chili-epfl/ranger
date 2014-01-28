@@ -1,4 +1,4 @@
-# **Description of the repository**
+# *Description of the repository
 
 ## aseba
 blabla
