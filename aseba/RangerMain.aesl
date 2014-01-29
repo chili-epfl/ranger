@@ -3,15 +3,15 @@
 
 
 <!--list of global events-->
-<event size="13" name="mainFeedback"/>
-<event size="17" name="mainFeedbackWithEncoders"/>
+<event size="15" name="mainFeedback"/>
+<event size="19" name="mainFeedbackWithEncoders"/>
 <event size="3" name="setLed"/>
 <event size="10" name="receiverFeedback"/>
 <event size="2" name="setSpeed"/>
 <event size="1" name="enableEncoders"/>
 <event size="2" name="playLedVid"/>
 <event size="0" name="stopLedVid"/>
-<event size="11" name="neuilFeedback"/>
+<event size="5" name="neuilFeedback"/>
 <event size="8" name="neuilEvent"/>
 <event size="10" name="customEvent"/>
 <event size="7" name="emitterEvent"/>
@@ -19,15 +19,10 @@
 
 
 <!--list of constants-->
-<constant value="15" name="BALANCE_FILTER_SIZE"/>
 <constant value="600" name="CURRENT_LIMIT"/>
-<constant value="13" name="NB_TIMER0_CYCLES"/>
-<constant value="15" name="SPEED_EYELID"/>
-<constant value="10" name="SPEED_EYE"/>
-<constant value="35" name="SPEED_EYELID_FAST"/>
 <constant value="60" name="POS_REACHED_STEPS"/>
-<constant value="270" name="EYES_RAYON_L"/>
-<constant value="270" name="EYES_RAYON_R"/>
+<constant value="23" name="EYES_PWM_CONSTANT"/>
+<constant value="13" name="NB_TIMER0_CYCLES"/>
 
 
 <!--show keywords state-->
@@ -35,11 +30,9 @@
 
 
 <!--node RangerMain-->
-<node nodeId="1" name="RangerMain">var touchRightThreshold[9] = [1492, 840, 1156, 742, 825, 0, 1372, 869, 1122]
-var touchLeftThreshold[9] = [0, 440, 594, 368, 0, 359, 0, 421, 535]
-#var touchRearThreshold[9] = [671, 0, 0, 0, 386, 462, 1039, 594, 569]
-#var touchRearThreshold[9] = [675, 0, 0, 377, 769, 469, 1061, 599, 524]
-var touchRearThreshold[9] = [676, 460, 0, 0, 389, 465, 1055, 610, 576]
+<node nodeId="1" name="RangerMain">var touchLeftThreshold[9] = [154, 144, 132, 138, 120, 133, 155, 111, 117]
+var touchRightThreshold[9] = [239, 219, 195, 196, 181, 208, 219, 166, 176]
+var touchRearThreshold[9] = [147, 140, 132, 135, 116, 138, 155, 129, 129]
 var touchBuffer[2]
 var i
 var j
@@ -84,10 +77,10 @@ end
 touch._disable = 0
 
 # stop motors
-mot1.pid.enable = 1
+mot1.pid.enable = 2
 mot1.pid.target_current = 0
 mot1.pid.target_speed = 0
-mot2.pid.enable = 1
+mot2.pid.enable = 2
 mot2.pid.target_current = 0
 mot2.pid.target_speed = 0
 
@@ -124,15 +117,14 @@ if mainFeedbackEnable != 0 then
 	callsub touchCompress
 	callsub computeTmpBumber
 	if encoderEnabled == 1 then
-		emit mainFeedbackWithEncoders[acc, sharp, vbat, TmpBumber, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, mot1.enc._pulse, mot2.enc._pulse, _status.ExtPower]
+		emit mainFeedbackWithEncoders[acc, sharp, vbat, TmpBumber, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, mot1.enc._pulse, mot2.enc._pulse, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
 	else
-		emit mainFeedback[acc, sharp, vbat, TmpBumber, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, _status.ExtPower]
+		emit mainFeedback[acc, sharp, vbat, TmpBumber, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
 	end
 end
 if _status.ExtPower == 1 then
 	call led.vid.stop()
 end
-
 
 
 onevent setSpeed
@@ -151,7 +143,7 @@ playingVid = event.args[0]
 repeatVid = event.args[1]
 call led.vid.start(playingVid)
 
-onevent led
+onevent led # Video is finished
 if repeatVid == 1 then
 	call led.vid.start(playingVid)
 else
@@ -175,7 +167,7 @@ rf.swarm_size = 25
 rf.slot_time = 4000
 rx.power.en = 1
 tx.power.en = 1
-#call rf.start()
+call rf.start()
 
 
 onevent packet.rx
@@ -194,33 +186,20 @@ rabFeedbackEnable = event.args[0]</node>
 
 
 <!--node neuil-->
-<node nodeId="255" name="neuil">var mainFeedbackEnable = 0
+<node nodeId="15" name="neuil">var mainFeedbackEnable = 0
 var i
 var j
-var open_oeil_in_X_timer0_cycles
-var oeil_ouvert[2]
-var pos_min[8] = [582,695,790,887,810,786,629,764]
-var pos_center[8] = [872,975,1000,1000,1000,1000,909,1014]
-var pos_max[8] = [1172,1285,1198,1292,1220,1190,1199,1314]
-var pos_inc[8] = [SPEED_EYE,SPEED_EYE,
-				  SPEED_EYELID,SPEED_EYELID,
-				  SPEED_EYELID,SPEED_EYELID,
-				  SPEED_EYE,SPEED_EYE]
+# PWM order: leftVlPupil leftHpupil leftUeyelid leftLeyelid rightLeyelid rightUeyelid rightHpupil rightVpupil
+var pos_min[8]    = [   0,    0,  800,  900,  800,  800,    0,    0]
+var pos_center[8] = [ 850, 1000, 1000, 1000, 1000, 1000,  900, 1000]
+var pos_max[8]    = [1000, 1000, 1200, 1300, 1200, 1200, 1000, 1000]
 var pos_target[8]
 var pos_actual[8]
-var selectedServo = 0
-var pwm_selected = 0
-var min[8]
-var max[8]
 var posReached[8]
-var color = 0
-
-var speed
-
-var balanceValues[BALANCE_FILTER_SIZE]
-var sortedBalanceValues[BALANCE_FILTER_SIZE]
-var filteredBalance
-call math.fill(balanceValues, balance)
+var angle[4] = [0, 0, 0, 0]
+var X = 0
+var Y = 0
+var open_oeil_in_X_timer0_cycles
 
 pos_target = pos_center
 call math.fill(pos_actual, 0)
@@ -236,15 +215,7 @@ pos_target[3]=pos_max[3]
 pos_target[4]=pos_min[4]
 pos_target[5]=pos_max[5]
 
-#sub filterBalance
-#for i in 2:BALANCE_FILTER_SIZE do
-#	balanceValues[i-2] = balanceValues[i-1]
-#end
-#balanceValues[BALANCE_FILTER_SIZE-1] = balance
-#sortedBalanceValues = balanceValues
-#call math.sort(sortedBalanceValues)
-#filteredBalance = sortedBalanceValues[(BALANCE_FILTER_SIZE+1)/2]
-
+## this is an example of use of the custom event in order to do a wink
 sub call_Ouvert
 pos_target[2]=pos_min[2]
 pos_target[3]=pos_max[3]
@@ -283,9 +254,8 @@ pos_target[7]=1014
 
 onevent customEvent
 if event.args[0] == 1 then #clin d'oeil
-	call math.fill(pos_inc[2:5] , SPEED_EYELID_FAST)
 	callsub call_Ferme
-	open_oeil_in_X_timer0_cycles = 2 * NB_TIMER0_CYCLES
+	open_oeil_in_X_timer0_cycles =  NB_TIMER0_CYCLES
 	if event.args[1] == 1 then
 		callsub call_Gauche
 	elseif event.args[1] == 2 then
@@ -294,27 +264,19 @@ if event.args[0] == 1 then #clin d'oeil
 end
 
 onevent timer0
-if open_oeil_in_X_timer0_cycles > 0 then
+if open_oeil_in_X_timer0_cycles > 0 then  # manage the wink
 	open_oeil_in_X_timer0_cycles--
-	if  open_oeil_in_X_timer0_cycles == NB_TIMER0_CYCLES then
-		callsub call_Ouvert
-##		servo.pwm[2:5] = pos_target[2:5]
-##		pos_actual[2:5] = pos_target[2:5]
-	end
 	if  open_oeil_in_X_timer0_cycles == 0 then
-		call math.fill(pos_inc[2:5] , SPEED_EYELID)
-##		servo.pwm[2:5] = pos_target[2:5]
-##		pos_actual[2:5] = pos_target[2:5]
+		callsub call_Ouvert
 	end
 end
-
 for i in 0:7 do
 	if pos_actual[i] == 0 then
 		pos_actual[i] = pos_target[i]
 		servo.pwm[i] = pos_target[i]
 	elseif pos_target[i] == pos_actual[i] then	
 		if posReached[i] != 1 then	
-			if posReached[i] == 0 then
+			if posReached[i] == 0 then # servo is at the correct location since 'POS_REACHED_STEPS' steps, we can switch it off by setting the PWM to 0
 				posReached[i] = 1
 				servo.pwm[i] = 0
 			else
@@ -322,75 +284,22 @@ for i in 0:7 do
 			end
 		end
 	else
-		if pos_target[i] > pos_actual[i] then
-			call math.min(pos_actual[i], pos_target[i], pos_actual[i]+pos_inc[i])
-		else
-			call math.max(pos_actual[i], pos_target[i], pos_actual[i]-pos_inc[i])
-		end
+		pos_actual[i] = pos_target[i]
 		servo.pwm[i] = pos_actual[i]
 		posReached[i] = -POS_REACHED_STEPS
 	end
 end
 
-when lolette == 1 do
-	if color == 0 then
-		color = 1
-		emit setLed[255, 0, 0]
-	elseif color == 1 then
-		color = 2
-		emit setLed[0, 255, 0]
-	elseif color == 2 then
-		color = 3
-		emit setLed[0, 0, 255]
-	elseif color == 3 then
-		color = 0
-		emit setLed[255, 255, 255]
-	end
-
-end
-
-when lolette == 0 do
-	emit setLed[0, 0, 0]
-end
-
-when sharp.value[0] > 1500 do
-	callsub call_Droite
-end
-
-when sharp.value[2] > 1500 do
-	callsub call_Gauche
-end
-
-when sharp.value[1] > 1500 do
-	call math.fill(pos_inc[2:5] , SPEED_EYELID_FAST)
-	callsub call_Ferme
-	open_oeil_in_X_timer0_cycles = 2 * NB_TIMER0_CYCLES
-end
-
 # feedback 
 onevent timer1
-#callsub filterBalance
 if mainFeedbackEnable != 0 then
-	for i in 0:3 do # Send position of the eyelid relative to the close position
-		#RelativePosition[i] = position[i+2] - EyeLidClose[i]
-	end
-	emit neuilFeedback [sharp.value, 0, 0, 0, 0, 0, 0, lolette, filteredBalance]
+	emit neuilFeedback [sharp.value, lolette, balance]
 end
 
 ### Command received ###
 onevent neuilEvent
-## EyeLids
-#pos_target[2] = ((100-event.args[4]) * ((pos_max[2] - pos_min[2])/10)) / 10 + pos_min[2]
-
-#pos_target[3] = (event.args[5] * ((pos_max[3] - pos_min[3])/10)) / 10 + pos_min[3]
-
-#pos_target[4] = ((100-event.args[6]) * ((pos_max[4] - pos_min[4])/10)) / 10 + pos_min[4]
-
-#pos_target[5] = (event.args[7] * ((pos_max[5] - pos_min[5])/10)) / 10 + pos_min[5]
-
-##Eyes
-#Make sure consign is between -100 and 100
-for i in 0:3 do
+### Make sure consign is between -100 and 100
+for i in 0:7 do
 	if event.args[i] > 100 then
 		event.args[i] = 100
 	elseif event.args[i] &lt; -100 then
@@ -398,10 +307,21 @@ for i in 0:3 do
 	end
 end
 
+###  EyeLids
+pos_target[2] = ((100-event.args[4]) * ((pos_max[2] - pos_min[2])/10)) / 10 + pos_min[2]
+
+pos_target[3] = (event.args[5] * ((pos_max[3] - pos_min[3])/10)) / 10 + pos_min[3]
+
+pos_target[4] = ((100-event.args[6]) * ((pos_max[4] - pos_min[4])/10)) / 10 + pos_min[4]
+
+pos_target[5] = (event.args[7] * ((pos_max[5] - pos_min[5])/10)) / 10 + pos_min[5]
+
+### Eyes
+## make sure that consign is in the circle of radius 100 center in {0,0}
 # Left eye
 j = event.args[0] * event.args[0] + event.args[1] * event.args[1]
 call math.sqrt(j, j)
-if j > 100 then # out of circle
+if j > 100 then # out of circle of radius 100
 	event.args[0] = (event.args[0] * 100) / j
 	event.args[1] = (event.args[1] * 100) / j
 end
@@ -409,30 +329,32 @@ end
 # Right eye
 j = event.args[2] * event.args[2] + event.args[3] * event.args[3]
 call math.sqrt(j, j)
-if j > 100 then # out of circle
+if j > 100 then # out of circle of radius 100
 	event.args[2] = (event.args[2] * 100) / j
 	event.args[3] = (event.args[3] * 100) / j
 end
 
-
-if event.args[0] &lt; 0 and event.args[1] > 0 then
-	event.args[0] = (event.args[0] * 7) / 10
-	event.args[1] = (event.args[1] * 7) / 10
-end
-if event.args[0] &lt; 0 and event.args[1] > 0 then
-	event.args[0] = (event.args[0] * 7) / 10
-	event.args[1] = (event.args[1] * 7) / 10
-end
-if event.args[2] &lt; 0 and event.args[3] &lt; 0 then
-	event.args[2] = (event.args[2] * 7) / 10
-	event.args[3] = (event.args[3] * 7) / 10
-end
-
-# apply
-pos_target[0] = pos_center[0] + (event.args[0] * EYES_RAYON_L) / 100
-pos_target[1] = pos_center[1] + (event.args[1] * EYES_RAYON_L) / 100
-pos_target[6] = pos_center[6] + (event.args[3] * EYES_RAYON_R) / 100
-pos_target[7] = pos_center[7] + (-event.args[2] * EYES_RAYON_R) / 100
+## Compute and apply target position of each motor
+#motor 0
+Y = (26 * event.args[1])
+X = 5000 + (26 * event.args[0]) # 26 instead of 52.85/2 
+call math.atan2(angle[0], Y, X)
+pos_target[0] = pos_center[0] + angle[0] / EYES_PWM_CONSTANT
+#motor 1 
+Y = (26 * event.args[0])
+X = 5000 - (26 * event.args[1]) # 26 instead of 52.85/2 
+call math.atan2(angle[1], Y, X)
+pos_target[1] = pos_center[1] + angle[1] / EYES_PWM_CONSTANT
+#motor 7
+Y = -(26 * event.args[3])
+X = 5000 + (26 * event.args[2]) # 26 instead of 52.85/2 
+call math.atan2(angle[2], Y, X)
+pos_target[7] = pos_center[7] + angle[2] / EYES_PWM_CONSTANT
+#motor 6
+Y = -(26 * event.args[2])
+X = 5000 - (26 * event.args[3]) # 26 instead of 52.85/2 
+call math.atan2(angle[3], Y, X)
+pos_target[6] = pos_center[6] + angle[3] / EYES_PWM_CONSTANT
 
 
 onevent enableFeedback
