@@ -10,7 +10,7 @@
 <!--list of constants-->
 <constant value="2" name="MAX_PANNEL"/>
 <constant value="8" name="MAX_KEY"/>
-<constant value="3" name="K1"/>
+<constant value="5" name="K1"/>
 <constant value="2" name="K2"/>
 
 
