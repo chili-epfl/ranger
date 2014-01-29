@@ -103,9 +103,9 @@ end
 
 onevent ComputeThreshold
 for i in 0:8 do
-	touchLeftThreshold[i] = (touchMax0[i]*K1 + touchMin0[i]*K2) / (K1+K2)
+	touchRightThreshold[i] = (touchMax0[i]*K1 + touchMin0[i]*K2) / (K1+K2)
 	touchRearThreshold[i] = (touchMax1[i]*K1 + touchMin1[i]*K2) / (K1+K2)
-	touchRightThreshold[i] = (touchMax2[i]*K1 + touchMin2[i]*K2) / (K1+K2)
+	touchLeftThreshold[i] = (touchMax2[i]*K1 + touchMin2[i]*K2) / (K1+K2)
 end</node>
 
 
