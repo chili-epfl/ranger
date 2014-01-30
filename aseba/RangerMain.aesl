@@ -122,9 +122,9 @@ if mainFeedbackEnable != 0 then
 		emit mainFeedback[acc, sharp, vbat, TmpBumber, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
 	end
 end
-if _status.ExtPower == 1 then
-	call led.vid.stop()
-end
+#if _status.ExtPower == 1 then
+#	call led.vid.stop()
+#end
 
 
 onevent setSpeed
