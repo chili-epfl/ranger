@@ -210,10 +210,19 @@ sharp.enable[0] = 1
 sharp.enable[1] = 1
 sharp.enable[2] = 1
 
+# open eyelids
 pos_target[2]=pos_min[2]
 pos_target[3]=pos_max[3]
 pos_target[4]=pos_min[4]
 pos_target[5]=pos_max[5]
+
+## put pupil at lower center (this allows to be sure pupil is fixed to magnet)
+pos_target[0]=pos_center[0] - 180
+pos_target[7]=pos_center[7] + 180
+
+pos_target[1]=pos_center[1]
+pos_target[6]=pos_center[6]
+
 
 for i in 0:7 do
 	posReached[i] = -POS_REACHED_STEPS
