@@ -215,6 +215,10 @@ pos_target[3]=pos_max[3]
 pos_target[4]=pos_min[4]
 pos_target[5]=pos_max[5]
 
+for i in 0:7 do
+	posReached[i] = -POS_REACHED_STEPS
+end
+
 ## this is an example of use of the custom event in order to do a wink
 sub call_Ouvert
 pos_target[2]=pos_min[2]
