@@ -1,0 +1,56 @@
+Instructions to connect via Bluetooth to Ranger2
+================================================
+
+Let consider `BT_ADDRESS` is the Bluetooth address of the robot (`hcitool scan`
+can help you with that):
+
+- `export BT_ADDRESS='10:00:E8:6C:F0:4F'`
+
+And `HCI` is the Bluetooth interface you want to use (typically,
+`hci0`).
+
+- `export HCI='hci0'`
+
+Initial pairing
+---------------
+
+The first time you connect to the robot, you need to perform an initial
+pairing:
+
+- `echo "0000" | bluez-simple-agent $HCI $BT_ADDRESS`
+
+Creating a serial port
+----------------------
+
+- `sudo rfcomm -i $HCI bind 0 $BT_ADDRESS`
+
+This creates a new serial device: `/dev/rfcomm0`
+
+Connect to the robot's Aseba network
+------------------------------------
+
+Either:
+
+- `asebamedulla -d -v "ser:device=/dev/rfcomm0;fc=hard;baud=921600"`
+
+or simply:
+
+- `asebaswitch -d -v "ser:device=/dev/rfcomm0;fc=hard;baud=921600"`
+
+Closing the connection
+----------------------
+
+- `ctrl+C` to quit `asebamedulla` or `asebaswitch`, and then:
+
+- `sudo rfcomm release 0` to release the serial port.
+
+- ./scenario1.py
+
+Troubleshooting
+---------------
+
+- slow, erratic behavior -> likely due to poor bt signal. Find a better bt adapter!
+- asebamedulla blocks on "presence from 0 : protocol version 4"
+   -> data corruption
+      - general solution: retry as many times as required
+      - also: prevent `modem-manager` to interfere by moving it away (`/usr/sbin/modem-manager`)
