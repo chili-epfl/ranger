@@ -77,10 +77,10 @@ end
 touch._disable = 0
 
 # stop motors
-mot1.pid.enable = 2
+mot1.pid.enable = 1
 mot1.pid.target_current = 0
 mot1.pid.target_speed = 0
-mot2.pid.enable = 2
+mot2.pid.enable = 1
 mot2.pid.target_current = 0
 mot2.pid.target_speed = 0
 
@@ -128,10 +128,15 @@ end
 
 
 onevent setSpeed
-mot1.pid.enable = 2
-mot1.pid.target_speed = event.args[0]
-mot2.pid.enable = 2
-mot2.pid.target_speed = event.args[1]
+if event.args[0] == 0 and event.args[1] == 0 then
+	mot1.pid.enable = 1
+	mot2.pid.enable = 1
+else
+	mot1.pid.enable = 2
+	mot1.pid.target_speed = event.args[0]
+	mot2.pid.enable = 2
+	mot2.pid.target_speed = event.args[1]
+end
 
 onevent enableEncoders
 encoderEnabled = event.args[0]
