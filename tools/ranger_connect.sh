@@ -26,15 +26,6 @@ else
         fi
 fi
 
-# $# is the nb of args -> if any arg is given (like '--debug'), run in debug mode
-if [ $# -eq 0 ] 
-then
-    echo "Connecting to target..."
-    $EXEC "ser:device=$device;fc=hard;baud=921600"
-    echo "Connection successfully established! You can now talk to your robot :-)"
-else
-    # debug mode
-    echo "Running in debug mode"
-    $EXEC -d -v "ser:device=$device;fc=hard;baud=921600"
-fi
+echo "Connecting to target..."
+$EXEC -v "ser:device=$device;fc=hard;baud=921600"
 
