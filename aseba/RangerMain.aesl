@@ -194,10 +194,11 @@ rabFeedbackEnable = event.args[0]</node>
 <node nodeId="15" name="neuil">var mainFeedbackEnable = 0
 var i
 var j
-# PWM order: leftVlPupil leftHpupil leftUeyelid leftLeyelid rightLeyelid rightUeyelid rightHpupil rightVpupil
-var pos_min[8]    = [   0,    0,  800,  900,  800,  800,    0,    0]
-var pos_center[8] = [ 850, 1000, 1000, 1000, 1000, 1000,  900, 1000]
-var pos_max[8]    = [1000, 1000, 1200, 1300, 1200, 1200, 1000, 1000]
+
+var pos_min[8]
+var pos_center[8]
+var pos_max[8]
+
 var pos_target[8]
 var pos_actual[8]
 var posReached[8]
@@ -205,6 +206,13 @@ var angle[4] = [0, 0, 0, 0]
 var X = 0
 var Y = 0
 var open_oeil_in_X_timer0_cycles
+
+# Initialize PWN values for the eyes (read from firmware)
+for i in 0:7 do
+	call _system.settings.read( 0+i,pos_max[i])
+	call _system.settings.read( 8+i,pos_min[i])
+	call _system.settings.read(16+i,pos_center[i])
+end
 
 pos_target = pos_center
 call math.fill(pos_actual, 0)
