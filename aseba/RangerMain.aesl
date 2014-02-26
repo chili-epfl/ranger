@@ -29,8 +29,34 @@
 <keywords flag="true"/>
 
 
+<!--node rab2-->
+<node name="rab2">var rabFeedbackEnable = 0
+var c
+rf.id = 7
+rf.swarm_size = 25
+rf.slot_time = 4000
+rx.power.en = 1
+tx.power.en = 1
+call rf.start()
+
+
+onevent packet.rx
+if rabFeedbackEnable != 0 then
+	emit receiverFeedback[rx.source, rx.angle, rx.dist, rx.data]
+end
+
+
+onevent emitterEvent
+for c in 0:6 do
+	rf.tx_data[c] = event.args[c]
+end
+
+onevent enableFeedback
+rabFeedbackEnable = event.args[0]</node>
+
+
 <!--node RangerMain-->
-<node nodeId="1" name="RangerMain">var touchLeftThreshold[9] = [154, 144, 132, 138, 120, 133, 155, 111, 117]
+<node name="RangerMain">var touchLeftThreshold[9] = [154, 144, 132, 138, 120, 133, 155, 111, 117]
 var touchRightThreshold[9] = [239, 219, 195, 196, 181, 208, 219, 166, 176]
 var touchRearThreshold[9] = [147, 140, 132, 135, 116, 138, 155, 129, 129]
 var touchBuffer[2]
@@ -129,8 +155,12 @@ end
 
 onevent setSpeed
 if event.args[0] == 0 and event.args[1] == 0 then
+	mot1.pid.target_speed = 0
 	mot1.pid.enable = 1
+	mot1.pid.target_current = 0
+	mot2.pid.target_speed = 0
 	mot2.pid.enable = 1
+	mot2.pid.target_current = 0
 else
 	mot1.pid.enable = 2
 	mot1.pid.target_speed = event.args[0]
@@ -164,34 +194,8 @@ mainFeedbackEnable = event.args[0]
 </node>
 
 
-<!--node rab2-->
-<node nodeId="7" name="rab2">var rabFeedbackEnable = 0
-var c
-rf.id = 7
-rf.swarm_size = 25
-rf.slot_time = 4000
-rx.power.en = 1
-tx.power.en = 1
-call rf.start()
-
-
-onevent packet.rx
-if rabFeedbackEnable != 0 then
-	emit receiverFeedback[rx.source, rx.angle, rx.dist, rx.data]
-end
-
-
-onevent emitterEvent
-for c in 0:6 do
-	rf.tx_data[c] = event.args[c]
-end
-
-onevent enableFeedback
-rabFeedbackEnable = event.args[0]</node>
-
-
 <!--node neuil-->
-<node nodeId="15" name="neuil">var mainFeedbackEnable = 0
+<node name="neuil">var mainFeedbackEnable = 0
 var i
 var j
 
