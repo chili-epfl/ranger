@@ -1,0 +1,110 @@
+<!DOCTYPE aesl-source>
+<network>
+
+
+<!--list of global events-->
+<event size="0" name="ReadSettings"/>
+<event size="0" name="WriteSettings"/>
+
+
+<!--list of constants-->
+<constant value="55" name="NB_MAIN_SETTINGS_MINUS_ONE"/>
+<constant value="26" name="NB_NEUIL_SETTINGS_MINUS_ONE"/>
+
+
+<!--show keywords state-->
+<keywords flag="true"/>
+
+
+<!--node rab2-->
+<node nodeId="7" name="rab2">var rf_id = 0
+
+# !!! Check these init
+var initSettings = 0		# 1 to init the settings
+
+if initSettings == 1 then
+	rf_id = 10
+	call _system.settings.write(9*8,rf_id)	
+	call _system.settings.flash()
+end
+
+onevent ReadSettings
+call _system.settings.read(9*8,rf_id)	
+
+onevent WriteSettings
+call _system.settings.write(9*8,rf_id)	
+call _system.settings.flash()
+</node>
+
+
+<!--node RangerMain-->
+<node nodeId="1" name="RangerMain">var settings[NB_MAIN_SETTINGS_MINUS_ONE+1]
+var i
+
+# !!! Check these init
+var initSettings = 0		# 1 to init the settings
+
+call math.fill(settings,0)
+
+if initSettings == 1 then
+	settings = [24937,14661,3385,18701,13637,3401,
+				3341,3341,3341,3341,3341,3341,
+				32137,30061,3405,25869,19833,3425,
+				
+				8,8,15,5,20,1,5,15,3500,1200,2000,100,1,1,10,1,-1995,0,0,
+				8,8,15,5,20,1,5,15,3500,1200,2000,100,1,1,10,1,1989,0,0]
+	for i in 0:NB_MAIN_SETTINGS_MINUS_ONE do
+		call _system.settings.write(i,settings[i])	
+	end
+	call _system.settings.flash()
+end
+
+onevent ReadSettings
+for i in 0:NB_MAIN_SETTINGS_MINUS_ONE do
+	call _system.settings.read(i,settings[i])	
+end
+
+onevent WriteSettings
+for i in 0:NB_MAIN_SETTINGS_MINUS_ONE do
+	call _system.settings.write(i,settings[i])	
+end
+call _system.settings.flash()
+</node>
+
+
+<!--node neuil-->
+<node nodeId="15" name="neuil">var settings[NB_NEUIL_SETTINGS_MINUS_ONE+1]
+var i
+
+# !!! Check these 3 inits
+var initSettings = 0		# 1 to init the settings
+var enableControlPwms = 0	# 0 by default, 1 for debug purpose
+var samePwmDurationForRelease = 50	# in order to release the servos after end of movements. Based on 20ms period that means 1 sec after the target position is reached
+var servoDeltaMax = 70
+
+call math.fill(settings,0)
+
+if initSettings == 1 then
+	settings[0:15] = [	1370,1622,1570,1419,1781,1180,1470,1503,
+						200,224,-385,360,-366,376,200,-184]
+	settings[16:26] = [1,1,1,1,1,1,1,1,enableControlPwms,samePwmDurationForRelease,servoDeltaMax]
+	for i in 0:NB_NEUIL_SETTINGS_MINUS_ONE do
+		call _system.settings.write(i,settings[i])	
+	end
+	call _system.settings.flash()
+end
+
+onevent ReadSettings
+for i in 0:NB_NEUIL_SETTINGS_MINUS_ONE do
+	call _system.settings.read(i,settings[i])	
+end
+
+onevent WriteSettings
+for i in 0:NB_NEUIL_SETTINGS_MINUS_ONE do
+	call _system.settings.write(i,settings[i])	
+end
+call _system.settings.flash()
+</node>
+
+
+</network>
