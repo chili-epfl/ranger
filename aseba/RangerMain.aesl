@@ -16,12 +16,15 @@
 <event size="10" name="customEvent"/>
 <event size="7" name="emitterEvent"/>
 <event size="1" name="enableFeedback"/>
+<event size="1" name="openEyelids"/>
+<event size="3" name="EyeCartesianSet"/>
+<event size="3" name="EyePolarSet"/>
+<event size="2" name="openEyelid"/>
 
 
 <!--list of constants-->
 <constant value="600" name="CURRENT_LIMIT"/>
 <constant value="60" name="POS_REACHED_STEPS"/>
-<constant value="23" name="EYES_PWM_CONSTANT"/>
 <constant value="13" name="NB_TIMER0_CYCLES"/>
 
 
@@ -29,37 +32,8 @@
 <keywords flag="true"/>
 
 
-<!--node rab2-->
-<node name="rab2">var rabFeedbackEnable = 0
-var c
-rf.id = 7
-rf.swarm_size = 25
-rf.slot_time = 4000
-rx.power.en = 1
-tx.power.en = 1
-call rf.start()
-
-
-onevent packet.rx
-if rabFeedbackEnable != 0 then
-	emit receiverFeedback[rx.source, rx.angle, rx.dist, rx.data]
-end
-
-
-onevent emitterEvent
-for c in 0:6 do
-	rf.tx_data[c] = event.args[c]
-end
-
-onevent enableFeedback
-rabFeedbackEnable = event.args[0]</node>
-
-
 <!--node RangerMain-->
-<node name="RangerMain">var touchLeftThreshold[9] = [154, 144, 132, 138, 120, 133, 155, 111, 117]
-var touchRightThreshold[9] = [239, 219, 195, 196, 181, 208, 219, 166, 176]
-var touchRearThreshold[9] = [147, 140, 132, 135, 116, 138, 155, 129, 129]
-var touchBuffer[2]
+<node nodeId="1" name="RangerMain">var touchBuffer[2]
 var i
 var j
 var timer = 0
@@ -80,26 +54,6 @@ for i in 0:185 do
 	call led.set(i, 0, 0, 0)
 end
 
-# touch panel calibration
-for i in 0:8 do
-	if i > 4 then # because 5 and 6 are not for touch panel
-		j = 163 + i + 2 
-	else
-		j = 163 + i
-	end
-	# right
-	touchBuffer[0] = j
-	touchBuffer[1] = touchRightThreshold[i]&lt;&lt;2 | 1
-	call touch.debug(0, touchBuffer, 0)
-	# rear
-	touchBuffer[0] = j
-	touchBuffer[1] = touchRearThreshold[i]&lt;&lt;2 | 1
-	call touch.debug(1, touchBuffer, 0)
-	# left
-	touchBuffer[0] = j
-	touchBuffer[1] = touchLeftThreshold[i]&lt;&lt;2 | 1
-	call touch.debug(2, touchBuffer, 0)
-end
 touch._disable = 0
 
 # stop motors
@@ -132,7 +86,8 @@ j = 1
 for i in 0:8 do
 	TouchRight += touch.right[i]*j
 	TouchLeft  += touch.left[i]*j
-	TouchRear  += touch.rear[i]*j
+#	TouchRear  += touch.rear[i]*j
+	TouchRear = 0	## For the moment this touch panel is not available !!
 	j *= 2
 end
 
@@ -194,129 +149,86 @@ mainFeedbackEnable = event.args[0]
 </node>
 
 
-<!--node neuil-->
-<node name="neuil">var mainFeedbackEnable = 0
-var i
-var j
+<!--node rab2-->
+<node nodeId="7" name="rab2">var rabFeedbackEnable = 0
+var c
 
-var pos_min[8]
-var pos_center[8]
-var pos_max[8]
+var actual_tx_timeslot = 0
 
-var pos_target[8]
-var pos_actual[8]
-var posReached[8]
-var angle[4] = [0, 0, 0, 0]
-var X = 0
-var Y = 0
-var open_oeil_in_X_timer0_cycles
+rf.swarm_size = 25
+rf.slot_time = 4000
+rx.power.en = 1
+tx.power.en = 1
 
-# Initialize PWN values for the eyes (read from firmware)
-for i in 0:7 do
-	call _system.settings.read( 0+i,pos_max[i])
-	call _system.settings.read( 8+i,pos_min[i])
-	call _system.settings.read(16+i,pos_center[i])
+rf.tx_data[3] = actual_tx_timeslot
+
+call rf.start()
+
+
+onevent packet.tx
+actual_tx_timeslot += 1
+rf.tx_data[3] = actual_tx_timeslot
+
+onevent packet.rx
+if rabFeedbackEnable != 0 then
+# Manage only the Charging stations (15..19) or Beacon (29) datas
+	if (rx.source >= 15) and (rx.source &lt;= 20) and (rx.data[0] == rf.id) then
+		emit receiverFeedback[rx.source, rx.angle, rx.dist, rx.data]
+	end
 end
 
-pos_target = pos_center
-call math.fill(pos_actual, 0)
+onevent emitterEvent
+for c in 0:6 do
+	rf.tx_data[c] = event.args[c]
+end
 
-timer[0] = 10
+onevent enableFeedback
+rabFeedbackEnable = event.args[0]</node>
+
+
+<!--node neuil-->
+<node nodeId="15" name="neuil">var mainFeedbackEnable = 0
+
+# Just for Neuil init in order to move the pupils slowly; the magnets can be "englued" and lossed
+var initNeuil = 1
+var a = 0
+var da = 4
+var Rmax = 360
+var dR = 4
+var R = 1
+var i
+
+timer[0] = 50
 timer[1] = 100
+
 sharp.enable[0] = 1
 sharp.enable[1] = 1
 sharp.enable[2] = 1
 
-# open eyelids
-pos_target[2]=pos_min[2]
-pos_target[3]=pos_max[3]
-pos_target[4]=pos_min[4]
-pos_target[5]=pos_max[5]
-
-## put pupil at lower center (this allows to be sure pupil is fixed to magnet)
-pos_target[0]=pos_center[0] - 180
-pos_target[7]=pos_center[7] + 180
-
-pos_target[1]=pos_center[1]
-pos_target[6]=pos_center[6]
-
-
-for i in 0:7 do
-	posReached[i] = -POS_REACHED_STEPS
-end
-
-## this is an example of use of the custom event in order to do a wink
-sub call_Ouvert
-pos_target[2]=pos_min[2]
-pos_target[3]=pos_max[3]
-pos_target[4]=pos_min[4]
-pos_target[5]=pos_max[5]
-
-sub call_Ferme
-pos_target[2]=pos_max[2]
-pos_target[3]=pos_min[3]
-pos_target[4]=pos_max[4]
-pos_target[5]=pos_min[5]
-
-sub call_Haut
-pos_target[0]=1122
-pos_target[1]=975
-pos_target[6]=909
-pos_target[7]=784
-
-sub call_Bas
-pos_target[0]=642
-pos_target[1]=975
-pos_target[6]=909
-pos_target[7]=1264
-
-sub call_Gauche
-pos_target[0]=872
-pos_target[1]=730
-pos_target[6]=686
-pos_target[7]=1014
-
-sub call_Droite
-pos_target[0]=872
-pos_target[1]=1245
-pos_target[6]=1165
-pos_target[7]=1014
-
-onevent customEvent
-if event.args[0] == 1 then #clin d'oeil
-	callsub call_Ferme
-	open_oeil_in_X_timer0_cycles =  NB_TIMER0_CYCLES
-	if event.args[1] == 1 then
-		callsub call_Gauche
-	elseif event.args[1] == 2 then
-		callsub call_Droite
-	end
+for i in 0:3 do
+	call eyelid.set (i,100)
 end
 
 onevent timer0
-if open_oeil_in_X_timer0_cycles > 0 then  # manage the wink
-	open_oeil_in_X_timer0_cycles--
-	if  open_oeil_in_X_timer0_cycles == 0 then
-		callsub call_Ouvert
+if initNeuil == 1 then
+	if R > Rmax then
+		R = 0
+		dR = 0
+		initNeuil = 0
 	end
-end
-for i in 0:7 do
-	if pos_actual[i] == 0 then
-		pos_actual[i] = pos_target[i]
-		servo.pwm[i] = pos_target[i]
-	elseif pos_target[i] == pos_actual[i] then	
-		if posReached[i] != 1 then	
-			if posReached[i] == 0 then # servo is at the correct location since 'POS_REACHED_STEPS' steps, we can switch it off by setting the PWM to 0
-				posReached[i] = 1
-				servo.pwm[i] = 0
-			else
-				posReached[i]++
-			end
-		end
+	call eye.polar_set(0,R,a)
+	call eye.polar_set(1,R,360-a)
+
+	for i in 0:3 do
+		call eyelid.set (i,100-R%180)
+	end
+		
+	R+=dR
+	a+=da
+	if a &lt; 0 then
+		a = 360
 	else
-		pos_actual[i] = pos_target[i]
-		servo.pwm[i] = pos_actual[i]
-		posReached[i] = -POS_REACHED_STEPS
+		a%=360
 	end
 end
 
@@ -326,70 +238,22 @@ if mainFeedbackEnable != 0 then
 	emit neuilFeedback [sharp.value, lolette, balance]
 end
 
-### Command received ###
-onevent neuilEvent
-### Make sure consign is between -100 and 100
-for i in 0:7 do
-	if event.args[i] > 100 then
-		event.args[i] = 100
-	elseif event.args[i] &lt; -100 then
-		event.args[i] = -100
-	end
-end
-
-###  EyeLids
-pos_target[2] = ((100-event.args[4]) * ((pos_max[2] - pos_min[2])/10)) / 10 + pos_min[2]
-
-pos_target[3] = (event.args[5] * ((pos_max[3] - pos_min[3])/10)) / 10 + pos_min[3]
-
-pos_target[4] = ((100-event.args[6]) * ((pos_max[4] - pos_min[4])/10)) / 10 + pos_min[4]
-
-pos_target[5] = (event.args[7] * ((pos_max[5] - pos_min[5])/10)) / 10 + pos_min[5]
-
-### Eyes
-## make sure that consign is in the circle of radius 100 center in {0,0}
-# Left eye
-j = event.args[0] * event.args[0] + event.args[1] * event.args[1]
-call math.sqrt(j, j)
-if j > 100 then # out of circle of radius 100
-	event.args[0] = (event.args[0] * 100) / j
-	event.args[1] = (event.args[1] * 100) / j
-end
-
-# Right eye
-j = event.args[2] * event.args[2] + event.args[3] * event.args[3]
-call math.sqrt(j, j)
-if j > 100 then # out of circle of radius 100
-	event.args[2] = (event.args[2] * 100) / j
-	event.args[3] = (event.args[3] * 100) / j
-end
-
-## Compute and apply target position of each motor
-#motor 0
-Y = (26 * event.args[1])
-X = 5000 + (26 * event.args[0]) # 26 instead of 52.85/2 
-call math.atan2(angle[0], Y, X)
-pos_target[0] = pos_center[0] + angle[0] / EYES_PWM_CONSTANT
-#motor 1 
-Y = (26 * event.args[0])
-X = 5000 - (26 * event.args[1]) # 26 instead of 52.85/2 
-call math.atan2(angle[1], Y, X)
-pos_target[1] = pos_center[1] + angle[1] / EYES_PWM_CONSTANT
-#motor 7
-Y = -(26 * event.args[3])
-X = 5000 + (26 * event.args[2]) # 26 instead of 52.85/2 
-call math.atan2(angle[2], Y, X)
-pos_target[7] = pos_center[7] + angle[2] / EYES_PWM_CONSTANT
-#motor 6
-Y = -(26 * event.args[2])
-X = 5000 - (26 * event.args[3]) # 26 instead of 52.85/2 
-call math.atan2(angle[3], Y, X)
-pos_target[6] = pos_center[6] + angle[3] / EYES_PWM_CONSTANT
-
-
 onevent enableFeedback
 mainFeedbackEnable = event.args[0]
-</node>
+
+onevent openEyelid
+call eyelid.set (event.args[0],event.args[1])
+
+onevent openEyelids
+for i in 0:3 do
+	call eyelid.set (i,event.args[0])
+end
+
+onevent EyeCartesianSet
+call eye.cartesian_set(event.args[0],event.args[1],event.args[2])
+
+onevent EyePolarSet
+call eye.polar_set(event.args[0],event.args[1],event.args[2])</node>
 
 
 </network>

@@ -6,8 +6,6 @@
 
 
 <!--list of constants-->
-<constant value="4" name="STATION_ID"/>
-<constant value="7" name="ROBOT_ID"/>
 
 
 <!--show keywords state-->
@@ -15,7 +13,16 @@
 
 
 <!--node rab2-->
-<node nodeId="7" name="rab2">rf.id = STATION_ID
+<node nodeId="7" name="rab2">var temp_id[5] = [0,0,0,0,0]	## 0 if no valid for tx or free for rx, 10 to 14 for Ranger id
+var temp_dist[5]
+var temp_angle[5]
+var temp_tx_timeslot[5]
+
+var actual_id = 0
+var old_id = 0
+var check_next_tx
+var actual_tx_timeslot = 0
+
 rf.swarm_size = 25
 rf.slot_time = 4000
 rx.power.en = 1
@@ -23,9 +30,36 @@ tx.power.en = 1
 call rf.start()
 
 onevent packet.rx
-if rx.source == ROBOT_ID then
-	rf.tx_data[0] = rx.angle
-	rf.tx_data[1] = rx.dist
+if (rx.source >= 10) and (rx.source &lt;= 14) then
+	if (temp_id[rx.source - 10] == 0) then
+		temp_dist[rx.source - 10] = rx.dist
+		temp_angle[rx.source - 10] = rx.angle
+		temp_tx_timeslot[rx.source - 10] = rx.data[3]
+		temp_id[rx.source - 10] = rx.source
+	end
+end
+
+onevent packet.tx
+rf.tx_data[0] = 0	# nothing to transmit for the moment
+old_id = actual_id
+check_next_tx = 1
+while (check_next_tx == 1) do
+	if (temp_id[actual_id] != 0) then
+		rf.tx_data[1] = temp_dist[actual_id]
+		rf.tx_data[2] = temp_angle[actual_id]
+		rf.tx_data[3] = temp_tx_timeslot[actual_id]
+		rf.tx_data[0] = temp_id[actual_id]
+		temp_id[actual_id] = 0 # Release the just sent buffer
+		check_next_tx = 0
+	end
+	actual_id += 1
+	actual_id %= 5
+	if (check_next_tx == 1) then
+		if (actual_id == old_id) then
+			check_next_tx = 0
+		end
+	end
+	
 end</node>
 
 
