@@ -43,7 +43,7 @@ var repeatVid = 0
 var TouchRight
 var TouchLeft
 var TouchRear
-var TmpBumber = 0
+var Bumper = 0
 var mainFeedbackEnable = 0
 
 mot1.pid.current_max = 3500
@@ -69,12 +69,12 @@ for i in 0:185 do
   call led.set(i, event.args[0], event.args[1], event.args[2])
 end
 
-# Simulate bumber with the motor current
-sub computeTmpBumber
-if mot1.pid.target_current > CURRENT_LIMIT or mot1.pid.target_current &lt; -CURRENT_LIMIT or mot2.pid.target_current > CURRENT_LIMIT or mot2.pid.target_current &lt; -CURRENT_LIMIT then
-	TmpBumber = 1
+# Bumper computed either via the physical bumper or with the motor current
+sub computeBumper
+if bumper == 1 or mot1.pid.target_current > CURRENT_LIMIT or mot1.pid.target_current &lt; -CURRENT_LIMIT or mot2.pid.target_current > CURRENT_LIMIT or mot2.pid.target_current &lt; -CURRENT_LIMIT then
+	Bumper = 1
 else
-	TmpBumber = 0
+	Bumper = 0
 end
 
 # Compress touchSensors in order to use only one variable by pannel
@@ -96,11 +96,11 @@ end
 onevent acc
 if mainFeedbackEnable != 0 then
 	callsub touchCompress
-	callsub computeTmpBumber
+	callsub computeBumper
 	if encoderEnabled == 1 then
-		emit mainFeedbackWithEncoders[acc, sharp, vbat, TmpBumber, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, mot1.enc._pulse, mot2.enc._pulse, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
+		emit mainFeedbackWithEncoders[acc, sharp, vbat, Bumper, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, mot1.enc._pulse, mot2.enc._pulse, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
 	else
-		emit mainFeedback[acc, sharp, vbat, TmpBumber, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
+		emit mainFeedback[acc, sharp, vbat, Bumper, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
 	end
 end
 #if _status.ExtPower == 1 then
