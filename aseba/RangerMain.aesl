@@ -26,6 +26,17 @@
 <constant value="600" name="CURRENT_LIMIT"/>
 <constant value="60" name="POS_REACHED_STEPS"/>
 <constant value="13" name="NB_TIMER0_CYCLES"/>
+<constant value="6" name="RF_DATA_LAST_INDEX"/>
+<constant value="10" name="RANGER_FIRST_ID"/>
+<constant value="14" name="RANGER_LAST_ID"/>
+<constant value="15" name="CHARGINGSTATION_FIRST_ID"/>
+<constant value="19" name="CHARGINGSTATION_LAST_ID"/>
+<constant value="20" name="BEACON_FIRST_ID"/>
+<constant value="21" name="BEACON_LAST_ID"/>
+<constant value="0" name="NO_ID"/>
+<constant value="255" name="BROADCAST_ID"/>
+<constant value="0" name="DEST_ID_POS"/>
+<constant value="1" name="PACKET_ID_POS"/>
 
 
 <!--show keywords state-->
@@ -152,34 +163,53 @@ mainFeedbackEnable = event.args[0]
 <!--node rab2-->
 <node nodeId="7" name="rab2">var rabFeedbackEnable = 0
 var c
-
-var actual_tx_timeslot = 0
+var data_buffer[RF_DATA_LAST_INDEX +1]
+# Data frame:
+# 0: dest rf id (0: No dest, 255: broadcast)
+# 1: packet id
+# 2: distance of detected RAB (dest rf id)
+# 3: angle of detected RAB (dest rf id)
+# 4: lolettes stat [1|2|4] or others
+# 5: ...
+# 6: ...
 
 rf.swarm_size = 25
 rf.slot_time = 4000
 rx.power.en = 1
 tx.power.en = 1
 
-rf.tx_data[3] = actual_tx_timeslot
+data_buffer[DEST_ID_POS] = NO_ID  # nothing to transmit for the moment
+rf.tx_data[PACKET_ID_POS] = 0
 
 call rf.start()
 
 
 onevent packet.tx
-actual_tx_timeslot += 1
-rf.tx_data[3] = actual_tx_timeslot
+rf.tx_data[DEST_ID_POS] = NO_ID  # nothing to transmit for the moment; data are not ready
+if (data_buffer[DEST_ID_POS] != 0) then  # transmission required
+	for c in 1:RF_DATA_LAST_INDEX do
+		rf.tx_data[c] = data_buffer[c]
+	end
+	rf.tx_data[DEST_ID_POS] = data_buffer[DEST_ID_POS]
+	data_buffer[DEST_ID_POS] = NO_ID  # data processed
+else
+	rf.tx_data[PACKET_ID_POS] += 1  # to see the timeslot
+end
 
 onevent packet.rx
-if rabFeedbackEnable != 0 then
-# Manage only the Charging stations (15..19) or Beacon (29) datas
-	if (rx.source >= 15) and (rx.source &lt;= 20) and (rx.data[0] == rf.id) then
-		emit receiverFeedback[rx.source, rx.angle, rx.dist, rx.data]
+if (rabFeedbackEnable != 0) then
+# Manage only the Charging stations or Beacons data
+	if (rx.data[DEST_ID_POS] == rf.id) or (rx.data[DEST_ID_POS] == BROADCAST_ID) then
+		if ((rx.source >= CHARGINGSTATION_FIRST_ID) and (rx.source &lt;= CHARGINGSTATION_LAST_ID))
+		or ((rx.source >= BEACON_FIRST_ID) and (rx.source &lt;= BEACON_LAST_ID)) then
+			emit receiverFeedback[rx.source, rx.angle, rx.dist, rx.data]
+		end
 	end
 end
 
 onevent emitterEvent
-for c in 0:6 do
-	rf.tx_data[c] = event.args[c]
+for c in 0:RF_DATA_LAST_INDEX do
+	data_buffer[c] = event.args[c]
 end
 
 onevent enableFeedback
