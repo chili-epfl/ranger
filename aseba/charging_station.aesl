@@ -6,6 +6,20 @@
 
 
 <!--list of constants-->
+<constant value="6" name="RF_DATA_LAST_INDEX"/>
+<constant value="5" name="RANGER_NB"/>
+<constant value="10" name="RANGER_FIRST_ID"/>
+<constant value="14" name="RANGER_LAST_ID"/>
+<constant value="15" name="CHARGINGSTATION_FIRST_ID"/>
+<constant value="19" name="CHARGINGSTATION_LAST_ID"/>
+<constant value="20" name="BEACON_FIRST_ID"/>
+<constant value="21" name="BEACON_LAST_ID"/>
+<constant value="0" name="NO_ID"/>
+<constant value="255" name="BROADCAST_ID"/>
+<constant value="0" name="DEST_ID_POS"/>
+<constant value="1" name="PACKET_ID_POS"/>
+constant value="2" name="DIST_POS"/>
+<constant value="3" name="ANGLE_POS"/>
 
 
 <!--show keywords state-->
@@ -13,15 +27,28 @@
 
 
 <!--node rab2-->
-<node nodeId="7" name="rab2">var temp_id[5] = [0,0,0,0,0]	## 0 if no valid for tx or free for rx, 10 to 14 for Ranger id
-var temp_dist[5]
-var temp_angle[5]
-var temp_tx_timeslot[5]
+<node nodeId="7" name="rab2"># Data frame:
+# 0: dest rf id (0: No dest, 255: broadcast)
+# 1: packet id
+# 2: distance of detected RAB (dest rf id)
+# 3: angle of detected RAB (dest rf id)
+# 4: ...
+# 5: ...
+# 6: ...
+
+var temp_id[RANGER_NB]
+var temp_packet_id[RANGER_NB]
+var temp_dist[RANGER_NB]
+var temp_angle[RANGER_NB]
 
 var actual_id = 0
 var old_id = 0
 var check_next_tx
-var actual_tx_timeslot = 0
+var i
+
+for i in 1 : RANGER_NB do
+	temp_id[i -1] = NO_ID
+end
 
 rf.swarm_size = 25
 rf.slot_time = 4000
@@ -30,30 +57,30 @@ tx.power.en = 1
 call rf.start()
 
 onevent packet.rx
-if (rx.source >= 10) and (rx.source &lt;= 14) then
-	if (temp_id[rx.source - 10] == 0) then
-		temp_dist[rx.source - 10] = rx.dist
-		temp_angle[rx.source - 10] = rx.angle
-		temp_tx_timeslot[rx.source - 10] = rx.data[3]
-		temp_id[rx.source - 10] = rx.source
+if (rx.source >= RANGER_FIRST_ID) and (rx.source &lt;= RANGER_LAST_ID) then
+	if (temp_id[rx.source - RANGER_FIRST_ID] == NO_ID) then
+		temp_packet_id[rx.source - RANGER_FIRST_ID] = rx.data[PACKET_ID_POS]
+		temp_dist[rx.source - RANGER_FIRST_ID] = rx.dist
+		temp_angle[rx.source - RANGER_FIRST_ID] = rx.angle
+		temp_id[rx.source - RANGER_FIRST_ID] = rx.source
 	end
 end
 
 onevent packet.tx
-rf.tx_data[0] = 0	# nothing to transmit for the moment
+rf.tx_data[DEST_ID_POS] = NO_ID	# nothing to transmit for the moment
 old_id = actual_id
 check_next_tx = 1
 while (check_next_tx == 1) do
-	if (temp_id[actual_id] != 0) then
-		rf.tx_data[1] = temp_dist[actual_id]
-		rf.tx_data[2] = temp_angle[actual_id]
-		rf.tx_data[3] = temp_tx_timeslot[actual_id]
-		rf.tx_data[0] = temp_id[actual_id]
-		temp_id[actual_id] = 0 # Release the just sent buffer
+	if (temp_id[actual_id] != NO_ID) then
+		rf.tx_data[PACKET_ID_POS] = temp_packet_id[actual_id]
+		rf.tx_data[DIST_POS] = temp_dist[actual_id]
+		rf.tx_data[ANGLE_POS] = temp_angle[actual_id]
+		rf.tx_data[DEST_ID_POS] = temp_id[actual_id]
+		temp_id[actual_id] = NO_ID  # Release the just sent buffer
 		check_next_tx = 0
 	end
 	actual_id += 1
-	actual_id %= 5
+	actual_id %= RANGER_NB
 	if (check_next_tx == 1) then
 		if (actual_id == old_id) then
 			check_next_tx = 0
