@@ -1,5 +1,14 @@
-Instructions to connect via Bluetooth to Ranger2
-================================================
+Instructions to connect Ranger2
+===============================
+
+via TCP
++++++++
+
+- asebamedulla -v "tcp:10.0.0.190;port=33333"
+
+
+via Bluetooth
++++++++++++++
 
 Let consider `BT_ADDRESS` is the Bluetooth address of the robot (`hcitool scan`
 can help you with that):
