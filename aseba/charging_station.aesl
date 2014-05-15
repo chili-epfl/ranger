@@ -18,7 +18,7 @@
 <constant value="255" name="BROADCAST_ID"/>
 <constant value="0" name="DEST_ID_POS"/>
 <constant value="1" name="PACKET_ID_POS"/>
-constant value="2" name="DIST_POS"/>
+<constant value="2" name="DIST_POS"/>
 <constant value="3" name="ANGLE_POS"/>
 
 
