@@ -3,15 +3,15 @@
 
 
 <!--list of global events-->
-<event size="15" name="mainFeedback"/>
-<event size="19" name="mainFeedbackWithEncoders"/>
+<event size="16" name="mainFeedback"/>
+<event size="20" name="mainFeedbackWithEncoders"/>
 <event size="3" name="setLed"/>
 <event size="10" name="receiverFeedback"/>
 <event size="2" name="setSpeed"/>
 <event size="1" name="enableEncoders"/>
 <event size="2" name="playLedVid"/>
 <event size="0" name="stopLedVid"/>
-<event size="5" name="neuilFeedback"/>
+<event size="4" name="neuilFeedback"/>
 <event size="8" name="neuilEvent"/>
 <event size="10" name="customEvent"/>
 <event size="7" name="emitterEvent"/>
@@ -112,9 +112,9 @@ if mainFeedbackEnable != 0 then
 	callsub touchCompress
 	callsub computeBumper
 	if encoderEnabled == 1 then
-		emit mainFeedbackWithEncoders[acc, sharp, vbat, Bumper, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, mot1.enc._pulse, mot2.enc._pulse, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
+		emit mainFeedbackWithEncoders[acc, sharp, vbat, Bumper, scales.median, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, mot1.enc._pulse, mot2.enc._pulse, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
 	else
-		emit mainFeedback[acc, sharp, vbat, Bumper, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
+		emit mainFeedback[acc, sharp, vbat, Bumper, scales.median, mot1.speed, mot2.speed, TouchRight, TouchLeft, TouchRear, _status.ExtPower, mot1._raw_current, -mot2._raw_current]
 	end
 end
 #if _status.ExtPower == 1 then
@@ -268,7 +268,7 @@ end
 # feedback 
 onevent timer1
 if mainFeedbackEnable != 0 then
-	emit neuilFeedback [sharp.value, lolette, balance]
+	emit neuilFeedback [sharp.value, lolette]
 end
 
 onevent enableFeedback
