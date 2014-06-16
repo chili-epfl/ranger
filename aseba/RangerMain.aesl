@@ -5,7 +5,7 @@
 <!--list of global events-->
 <event size="16" name="mainFeedback"/>
 <event size="20" name="mainFeedbackWithEncoders"/>
-<event size="3" name="setLed"/>
+<event size="4" name="setLed"/>
 <event size="10" name="receiverFeedback"/>
 <event size="2" name="setSpeed"/>
 <event size="1" name="enableEncoders"/>
@@ -20,6 +20,10 @@
 <event size="3" name="EyeCartesianSet"/>
 <event size="3" name="EyePolarSet"/>
 <event size="2" name="openEyelid"/>
+<event size="4" name="setLedsCol"/>
+<event size="3" name="setAllLeds"/>
+<event size="0" name="turnOffLeds"/>
+<event size="4" name="setLedsRow"/>
 
 
 <!--list of constants-->
@@ -79,9 +83,38 @@ mot2.pid.target_current = 0
 mot2.pid.target_speed = 0
 
 onevent setLed
+  call led.set(event.args[0], event.args[1], event.args[2], event.args[3])
+
+onevent setLedsCol
+# 31 cols in total, including corners
+if event.args[0] >= 0 and event.args[0] &lt;= 30 then
+	for i in 0:5 do
+		call led.set(event.args[0] * 6 + i, event.args[1], event.args[2], event.args[3])		
+	end
+end
+
+onevent setLedsRow
+# 6 rows in total 
+if event.args[0] >= 0 and event.args[0] &lt;= 5 then
+	for i in 0:30 do
+		if i % 2 == 0 and i != 0 and i != 10 and i != 20 and i != 30 then
+			call led.set(event.args[0] + i * 6, event.args[1], event.args[2], event.args[3])
+		else	
+			call led.set((i+1) * 6 - event.args[0], event.args[1], event.args[2], event.args[3])
+		end
+	end
+end
+
+onevent setAllLeds
 for i in 0:185 do
   call led.set(i, event.args[0], event.args[1], event.args[2])
 end
+
+onevent turnOffLeds
+for i in 0:185 do
+  call led.set(i, 0, 0, 0)
+end
+
 
 # Bumper computed either via the physical bumper or with the motor current
 sub computeBumper
