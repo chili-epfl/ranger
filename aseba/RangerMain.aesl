@@ -64,8 +64,8 @@ var TouchRear
 var Bumper = 0
 var mainFeedbackEnable = 0
 
-mot1.pid.current_max = 3500
-mot2.pid.current_max = 3500
+mot1.pid.current_max = 400
+mot2.pid.current_max = 400
 
 # switch off all leds
 for i in 0:185 do
