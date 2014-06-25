@@ -63,6 +63,10 @@ var TouchLeft
 var TouchRear
 var Bumper = 0
 var mainFeedbackEnable = 0
+var led_id
+var r
+var g
+var b
 
 mot1.pid.current_max = CURRENT_LIMIT
 mot2.pid.current_max = CURRENT_LIMIT
@@ -82,34 +86,69 @@ mot2.pid.enable = 1
 mot2.pid.target_current = 0
 mot2.pid.target_speed = 0
 
+sub setLedColor
+  # colors are between 0 and 127 instead of 255, so divide all values by two
+  # besides, for corners, bring down the intensity to be consistent with wooden
+  # panels.
+  if led_id &lt; 6 
+     or (led_id >= 10 * 6 and led_id &lt; 11 * 6)
+     or (led_id >= 20 * 6 and led_id &lt; 21 * 6)
+     or led_id >= 30 * 6 then
+  	 
+  	 call led.set(led_id, r/200, g/200, b/200)
+  	
+  else
+	  call led.set(led_id, r/2, g/2, b/2)
+  end
+
+
 onevent setLed
-  call led.set(event.args[0], event.args[1], event.args[2], event.args[3])
+	led_id = event.args[0]
+	r = event.args[1]
+	g = event.args[2]
+	b = event.args[3]
+	callsub setLedColor
 
 onevent setLedsCol
 # 31 cols in total, including corners
 if event.args[0] >= 0 and event.args[0] &lt;= 30 then
+	r = event.args[1]
+	g = event.args[2]
+	b = event.args[3]
 	for i in 0:5 do
-		call led.set(event.args[0] * 6 + i, event.args[1], event.args[2], event.args[3])		
+		led_id = event.args[0] * 6 + i
+		callsub setLedColor		
 	end
 end
 
 onevent setLedsRow
 # 6 rows in total 
 if event.args[0] >= 0 and event.args[0] &lt;= 5 then
+	r = event.args[1]
+	g = event.args[2]
+	b = event.args[3]
+	
 	for i in 0:30 do
 		if i % 2 == 0 and i != 0 and i != 10 and i != 20 and i != 30 then
-			call led.set(event.args[0] + i * 6, event.args[1], event.args[2], event.args[3])
+			led_id = (i + 1) * 6 - event.args[0] - 1
+			callsub setLedColor
 		else	
-			call led.set((i+1) * 6 - event.args[0], event.args[1], event.args[2], event.args[3])
+			led_id = i * 6 + event.args[0]
+			callsub setLedColor
 		end
 	end
 end
 
 onevent setAllLeds
-for i in 0:185 do
-  call led.set(i, event.args[0], event.args[1], event.args[2])
-end
-
+	r = event.args[1]
+	g = event.args[2]
+	b = event.args[3]
+		
+	for i in 0:185 do
+		led_id = i
+		callsub setLedColor
+	end
+	
 onevent turnOffLeds
 for i in 0:185 do
   call led.set(i, 0, 0, 0)
