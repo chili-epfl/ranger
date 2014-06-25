@@ -64,8 +64,8 @@ var TouchRear
 var Bumper = 0
 var mainFeedbackEnable = 0
 
-mot1.pid.current_max = 400
-mot2.pid.current_max = 400
+mot1.pid.current_max = CURRENT_LIMIT
+mot2.pid.current_max = CURRENT_LIMIT
 
 # switch off all leds
 for i in 0:185 do
@@ -118,7 +118,7 @@ end
 
 # Bumper computed either via the physical bumper or with the motor current
 sub computeBumper
-if bumper == 1 or mot1.pid.target_current > CURRENT_LIMIT or mot1.pid.target_current &lt; -CURRENT_LIMIT or mot2.pid.target_current > CURRENT_LIMIT or mot2.pid.target_current &lt; -CURRENT_LIMIT then
+if bumper == 1 or mot1.pid.target_current > (CURRENT_LIMIT - 20) or mot1.pid.target_current &lt; -(CURRENT_LIMIT - 20) or mot2.pid.target_current > (CURRENT_LIMIT - 20) or mot2.pid.target_current &lt; -(CURRENT_LIMIT - 20) then
 	Bumper = 1
 else
 	Bumper = 0
