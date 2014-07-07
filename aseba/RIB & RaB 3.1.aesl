@@ -1,0 +1,420 @@
+<!DOCTYPE aesl-source>
+<network>
+
+
+<!--list of global events-->
+<event size="2" name="RAB.start"/>
+<event size="0" name="RAB.stop"/>
+<event size="1" name="lolettesStat"/>
+<event size="1" name="batteryStat"/>
+<event size="0" name="RAB.ready"/>
+
+
+<!--list of constants-->
+<constant value="5" name="RANGER_NB"/>
+<constant value="10" name="RANGER_FIRST_ID"/>
+<constant value="14" name="RANGER_LAST_ID"/>
+<constant value="15" name="CHARGINGSTATION_FIRST_ID"/>
+<constant value="19" name="CHARGINGSTATION_LAST_ID"/>
+<constant value="20" name="BEACON_FIRST_ID"/>
+<constant value="21" name="BEACON_LAST_ID"/>
+<constant value="0" name="NO_ID"/>
+<constant value="255" name="BROADCAST_ID"/>
+<constant value="0" name="DEST_ID_POS"/>
+<constant value="1" name="PACKET_ID_POS"/>
+<constant value="2" name="DIST_POS"/>
+<constant value="3" name="ANGLE_POS"/>
+<constant value="4" name="LOLETTES_POS"/>
+<constant value="5" name="BATT_POS"/>
+<constant value="1200" name="SHUTDOWNTIME"/>
+<constant value="16" name="NB_COLOR"/>
+<constant value="5" name="NB_PATTERN"/>
+
+
+<!--show keywords state-->
+<keywords flag="true"/>
+
+
+<!--node rab2-->
+<node nodeId="7" name="rab2"># Data frame:
+# 0: dest rf id (0: No dest, 255: broadcast)
+# 1: packet id
+# 2: distance of detected RAB (dest rf id)
+# 3: angle of detected RAB (dest rf id)
+# 4: lolettes stat [1|2|4]
+# 5: battery voltage [mV]
+
+# const variables
+var RIB_id = 20  # This card id
+var corr_angle = -900  # Correct the 90° offset due to the assembly of the RAB into the case
+
+# Variables
+var pid[RANGER_NB]  # Packet id
+var dist[RANGER_NB]  # Distance mesurement of target
+var angle[RANGER_NB]  # Angle mesurement of target
+var transmit[RANGER_NB]  # Indicates that a transmission should be sent to target
+var lol_stat = 0  # Presence of lolettes (1|2|4)
+var bat_value = -1  # Value not known
+var index  # Temporary Ranger array index
+var act_index = 0  # Current Ranger array index
+var old_index  # Last transmitted index
+var check_next  # Indicate that the next postion in the array should be processed
+
+
+# Initialisation
+call math.fill(transmit, 0)
+rf.id = RIB_id
+rf.swarm_size = 25
+rf.slot_time = 4000
+rf.tx_data[DEST_ID_POS] = NO_ID  # nothing to transmit for the moment
+rx.power.en = 0
+tx.power.en = 0
+call rf.stop()
+emit RAB.ready
+
+
+# Evènements globaux
+onevent RAB.start
+	lol_stat = event.args[0]
+	bat_value = event.args[1]
+	rx.power.en = 1
+	tx.power.en = 1
+	call rf.start()
+
+
+onevent RAB.stop
+	rx.power.en = 0
+	tx.power.en = 0
+	call rf.stop()
+
+
+onevent lolettesStat
+	lol_stat = event.args[0]
+
+
+onevent batteryStat
+	bat_value = event.args[0]
+
+
+# Evènements
+onevent packet.rx
+	if (rx.source >= RANGER_FIRST_ID) and (rx.source &lt;= RANGER_LAST_ID) then
+		#if (rx.data[DEST_ID_POS] == RIB_id)  or (rx.data[DEST_ID_POS] == BROADCAST_ID) then
+		# Always send data to all Rangers
+			index = rx.source - RANGER_FIRST_ID
+			pid[index] = rx.data[PACKET_ID_POS]
+			dist[index] = rx.dist
+			angle[index] = rx.angle
+			if (angle[index] &lt; 3600) then  # Keep values over 360°
+				angle[index] += corr_angle  # Correct angle offset
+				if (angle[index] >= 3600) then
+					angle[index] -= 3600
+				elseif (angle[index] &lt; 0) then
+					angle[index] += 3600
+				end
+			end
+			transmit[index] = 1  # Transmission should be done
+		#end
+	end
+
+
+onevent packet.tx
+	rf.tx_data[DEST_ID_POS] = NO_ID  # nothing to transmit for the moment; data are not ready
+	old_index = act_index
+	check_next = 1
+	while (check_next == 1) do  # Check all array position from the current one to look if transmission is required
+		if (transmit[act_index] == 1) then
+			rf.tx_data[PACKET_ID_POS] = pid[act_index]
+			rf.tx_data[DIST_POS] = dist[act_index]
+			rf.tx_data[ANGLE_POS] = angle[act_index]
+			rf.tx_data[LOLETTES_POS] = lol_stat
+			rf.tx_data[BATT_POS] = bat_value
+			rf.tx_data[DEST_ID_POS] = RANGER_FIRST_ID + act_index  # destination id
+			transmit[act_index] = 0  # Transmission done
+			check_next = 0  # It's not required to look at the next position
+		end
+		act_index += 1
+		if (act_index == RANGER_NB) then
+			act_index = 0
+		end
+		if (check_next == 1) and (act_index == old_index) then
+			check_next = 0
+		end
+	end</node>
+
+
+<!--node Interface board-->
+<node nodeId="24" name="Interface board"># const variables; no write protection
+var RGBcolor_lightred[3] = [127, 0, 0]  # light red color
+var RGBcolor_lightgreen[3] = [0, 127, 0]  # light green color
+var RGBcolor_lightblue[3] = [0, 0, 127]  # light blue color
+var RGBcolor_lightyellow[3] = [96, 96, 0]  # light yellow color
+var RGBcolor_black[3] = [0, 0, 0]  # no color
+var RGBcolor_tab[NB_COLOR*3] = [164,196,0, 0,171,169, 27,161,226, 106,0,255, 170,0,255, 244,114,208,
+                                216,0,115, 162,0,37, 250,104,0, 240,163,10, 227,200,0, 130,90,44,
+                                109,135,100, 100,118,135, 118,96,138, 135,121,78]  # Array of different colors
+var all_groups = 0b111  # all groups mask
+var all_leds = 0b11111  # all leds mask
+var accX0 = -5  # Initial x axis offset
+var accY0 = 0  # Initial y axis offset
+var accZ0 = -20  # Initial z axis offset
+var acc_threshold = 3  # variations should be more than this value
+
+# Variables
+var group_on = 0  # group of illuminated leds
+var activityTime = 0
+var moving = 0
+var blinkErrStat = 0
+# RAB variables
+var RABisOn = 0
+var RABisReady = 0
+var RABshouldTransmit = 0
+var RABstandbyCtr = 0
+var RABckeckCtr = 0
+# Variables to display patterns
+var PatternNb[3]
+var LedsStat[3]
+var ColorStat[3]
+var DisplayPattern_param  # Parameter for DisplayPattern subroutine; define the index of groups
+var InitPattern_param
+# Temporary variables
+var i
+var color[3]
+var rand
+var rand3[3]
+
+# Initialisation
+	call RAB.off()
+	call leds.off()
+	call leds.RGBcolor(all_groups, all_leds, RGBcolor_black)  # light off all the leds
+	call Sleep.WaitLolette()
+
+
+# Local functions
+#sub RAB_restart  # Doesn't work in Aseba Studio &lt;= 1.3.1
+#	if (RABisOn == 0) then
+#		call RAB.on()  # Activate RAB localization to allow Rangers to come.
+#		RABisOn = 1
+#		RABckeckCtr = 0
+#	elseif (RABisReady == 1) then
+#		emit RAB.start [group_on, battery.mV]
+#	end
+#	RABshouldTransmit = 1
+
+
+#sub RAB_standby  # Doesn't work in Aseba Studio &lt;= 1.3.1
+#	if (RABshouldTransmit == 1) then
+#		emit RAB.stop
+#		RABshouldTransmit = 0
+#	end
+
+
+sub RAB_stop
+	call RAB.off()
+	RABshouldTransmit = 0
+	RABisReady = 0
+	RABisOn = 0
+
+
+sub RAB_check
+	if (RABisOn == 1) and (RABshouldTransmit == 0) then
+		RABstandbyCtr++
+		if (RABstandbyCtr > 0*15*2) then  # shutdown the RAB only after 15 [s]
+			callsub RAB_stop
+		end
+	else
+			RABstandbyCtr = 0
+	end
+	if (RABisOn == 1) and (RABisReady == 0) then
+		RABckeckCtr++
+		if (RABckeckCtr &lt; 3) then
+			blinkErrStat = 0
+		else
+			blinkErrStat = ~blinkErrStat
+		end
+		if (RABckeckCtr == 3) then  # RAB DC/DC converter couln't start due to the low battery voltage
+			call RAB.off()
+		elseif (RABckeckCtr == 60*2) then  # wait 60 [s] before switch on the RAB
+			call RAB.on()
+			RABckeckCtr = 0
+		end
+	else
+		blinkErrStat = 0
+	end
+
+
+#Display a pattern on a group of leds; use DisplayPattern_param
+sub DisplayPattern
+	i = ColorStat[DisplayPattern_param]*3
+	color = [RGBcolor_tab[i], RGBcolor_tab[i+1], RGBcolor_tab[i+2]]
+	if (LedsStat[DisplayPattern_param] == 0) then
+		call leds.RGBcolor(1&lt;&lt;DisplayPattern_param, all_leds, RGBcolor_black)  # light off the others
+	elseif (LedsStat[DisplayPattern_param] == all_leds) then
+		call leds.RGBcolor(1&lt;&lt;DisplayPattern_param, all_leds,  color)  # light one led
+	else
+		call leds.RGBcolor(1&lt;&lt;DisplayPattern_param, LedsStat[DisplayPattern_param],  color)  # light one led
+		call leds.RGBcolor(1&lt;&lt;DisplayPattern_param, all_leds ^ LedsStat[DisplayPattern_param], RGBcolor_black)  # light off the others
+	end
+	if (PatternNb[DisplayPattern_param] == 0) then  # Rotation horaire
+		LedsStat[DisplayPattern_param] &lt;&lt;= 1
+		if (LedsStat[DisplayPattern_param] > 0b10000) then
+			LedsStat[DisplayPattern_param] = 1
+		end
+	elseif (PatternNb[DisplayPattern_param] == 1) then
+		LedsStat[DisplayPattern_param] >>= 1
+		if (LedsStat[DisplayPattern_param] == 0) then
+			LedsStat[DisplayPattern_param] = 0b10000
+		end
+	elseif (PatternNb[DisplayPattern_param] == 2) then
+		LedsStat[DisplayPattern_param] &lt;&lt;= 1
+		if (LedsStat[DisplayPattern_param] &lt; all_leds) then
+		    LedsStat[DisplayPattern_param] |= 1
+		else
+		    LedsStat[DisplayPattern_param] &amp;= all_leds
+		end
+	elseif (PatternNb[DisplayPattern_param] == 3) or (PatternNb[DisplayPattern_param] == 4) then
+		if (LedsStat[DisplayPattern_param] &amp; 1 == 0) then
+			LedsStat[DisplayPattern_param] >>= 1
+			LedsStat[DisplayPattern_param] |= 0b10000
+		else
+			LedsStat[DisplayPattern_param] >>= 1
+		end
+	end
+
+
+# Configure the pattern; use InitPattern_param
+sub InitPattern
+	call math.rand(rand)
+	PatternNb[InitPattern_param] = abs(rand) % NB_PATTERN
+	call math.rand(rand)
+	ColorStat[InitPattern_param] = abs(rand) % NB_COLOR
+	if (PatternNb[InitPattern_param] == NB_PATTERN -1)  then
+		LedsStat[InitPattern_param] = 0b00010  # to do weird pattern
+	else
+		call math.rand(rand)
+		LedsStat[InitPattern_param] = 1 &lt;&lt; (abs(rand) % 5)
+	end
+
+
+# Some lolette insertion or removal
+onevent lolette
+	activityTime = 0  # Reset activityTime when lolette are inserted or removed
+	group_on = 0
+	if (lolettes.stat != 0) then
+		# Set the group of leds to light correponding of the inserted lolette
+		if (lolettes.stat1 == 1) then
+			group_on |= 1
+		end
+		if (lolettes.stat2 == 1) then
+			group_on |= 2
+		end
+		if (lolettes.stat3 == 1) then
+			group_on |= 4
+		end
+	end
+	emit lolettesStat group_on
+
+
+# 0.5 [s] timer event
+onevent timer.05s
+	# Auto-shutdown (10[min])
+	activityTime++
+	if (activityTime >= SHUTDOWNTIME) then
+		call leds.RGBcolor(all_groups, all_leds, RGBcolor_black)
+		callsub RAB_stop
+		call Sleep.WaitLolette()
+		return
+	end
+	# Check readiness of RAB
+	callsub RAB_check
+	# Detect movements
+	if (acc.x > accX0 + acc_threshold) or (acc.x &lt; accX0 - acc_threshold)
+		 or (acc.y > accY0 + acc_threshold) or (acc.y &lt; accY0 - acc_threshold)
+	     or (acc.z > accZ0 + acc_threshold) or (acc.z &lt; accZ0 - acc_threshold) then  # Detect if the device is moving
+		# Device is moving
+		if (moving == 0) then
+			moving = 1
+			#callsub RAB_standby  # No RAB localization; Ranger isn't allowed to move during the Interface board displacement
+				if (RABshouldTransmit == 1) then
+					emit RAB.stop
+					RABshouldTransmit = 0
+				end
+			InitPattern_param = 0
+			callsub InitPattern
+			InitPattern_param = 1
+			callsub InitPattern
+			InitPattern_param = 2
+			callsub InitPattern
+		end
+		DisplayPattern_param = 0
+		callsub DisplayPattern
+		DisplayPattern_param = 1
+		callsub DisplayPattern
+		DisplayPattern_param = 2
+		callsub DisplayPattern
+		call leds.on()
+	else
+		# Device is not moving
+		moving = 0
+		# Light off the unused groups
+		if (group_on != all_groups) then
+			call leds.RGBcolor(all_groups ^ group_on, all_leds, RGBcolor_black)
+		end
+		if (group_on != 0) then
+		
+			#callsub RAB_restart
+				if (RABisOn == 0) then
+					call RAB.on()  # Activate RAB localization to allow Rangers to come.
+					RABisOn = 1
+					RABckeckCtr = 0
+				elseif (RABisReady == 1) then
+					emit RAB.start [group_on, battery.mV]
+				end
+				RABshouldTransmit = 1
+			if (blinkErrStat == 0) then
+				# Light off the unused groups
+				if (group_on != all_groups) then
+					call leds.RGBcolor(all_groups ^ group_on, all_leds, RGBcolor_black)
+				end
+				# Light each of the lolette groups in different colors
+				if (group_on &amp; 1 != 0) then
+					call leds.RGBcolor(1, all_leds, RGBcolor_black)  # don't display any color for the moment
+				end
+				if (group_on &amp; 2 != 0) then
+					call leds.RGBcolor(2, all_leds, RGBcolor_lightred)
+				end
+				if (group_on &amp; 4 != 0) then
+					call leds.RGBcolor(4, all_leds, RGBcolor_lightblue)
+				end
+				call leds.on()
+			else
+				call leds.off()  # blink leds on error
+			end
+		else
+			#callsub RAB_standby  # standby cmd filtered each 0.5[s]
+				if (RABshouldTransmit == 1) then
+					emit RAB.stop
+					RABshouldTransmit = 0
+				end
+		end
+	end
+
+
+# 0.1 [s] timer event
+onevent timer.01s
+	call Data.Save.acc_lol()
+
+
+# RAB is powered and ready
+onevent RAB.ready
+	RABisReady = 1
+	# give uptodate initial values
+	if (RABshouldTransmit == 1) then
+		emit RAB.start [group_on, battery.mV]
+	else
+		emit lolettesStat group_on
+		emit batteryStat battery.mV
+	end</node>
+
+
+</network>
